@@ -1,7 +1,7 @@
 // ** a non blocking hash map **
 //
 // author: Onne Gorter <onne@onnlucky.com>
-// version: 2010-04-13
+// version: 2010-04-14
 // depends: libatomic-ops
 // license: MIT; see license.txt
 //
@@ -253,6 +253,7 @@ int _zero_block(header *nkvs) {
     assert(todo > 0);
     if (len <= BLOCK_SIZE) assert(todo == 1);
 
+    // assign ourselves a next block to work on
     unsigned long block = AO_fetch_and_add(&nkvs->_btodo, 1);
     if (block >= todo) { // done with work, wait for all workers to finish
         while (nkvs->_bdone < todo) yield(); // yield while waiting
@@ -265,6 +266,7 @@ int _zero_block(header *nkvs) {
     //strace("[%p]: zeroing(%lu): %p: %lu - %u", pthread_self(), block, nkvs, block * BLOCK_SIZE, blen);
     bzero(nkvs->kvs + block * BLOCK_SIZE, sizeof(entry) * blen);
 
+    // make known that we finished a block; since the order doesn't we just count until all blocks are done
     unsigned long bdone = AO_fetch_and_add(&nkvs->_bdone, 1);
     if (bdone >= todo) return 0; // done
     return 1;                    // more work todo

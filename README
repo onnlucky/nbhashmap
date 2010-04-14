@@ -1,0 +1,13 @@
+/h1. A non blocking hashmap.
+
+A fully thread safe map structure, mapping keys onto values.
+
+It does not make use of locks or other blocking structures, and should perform very well under high concurrency.
+
+Inspired by Cliff Clicks Java version.
+
+/author: Onne Gorter <onne@onnlucky.com>
+/version: 2010-04-14
+/depends: libatomic-ops
+/license: MIT; see license.txt
+
