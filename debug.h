@@ -17,7 +17,7 @@ static void _abort() {
     size = backtrace(bt, 128);
     strings = backtrace_symbols(bt, size);
 
-    fprintf(stderr, "\nfatal error; vm backtrace:\n");
+    fprintf(stderr, "\nfatal error; backtrace:\n");
     for (int i = 0; i < size; i++) {
         fprintf(stderr, "%s\n", strings[i]);
     }
@@ -30,7 +30,7 @@ static void _abort() {
 #define print(f, x...) do { fprintf(stdout, f"\n", ##x); fflush(stdout); } while(0)
 #define eprint(f, x...) do { fprintf(stderr, f"\n", ##x); fflush(stderr); } while(0)
 #define TODO() do { fprintf(stderr, "%s:%s:%u - not implemented\n", __FILE__, __FUNCTION__, __LINE__); _abort(); } while(0)
-#define fatal(f, x...) do { fprintf(stdout, f"\n", ##x); fflush(stdout); _abort(); } while(0)
+#define fatal(f, x...) do { fprintf(stdout, "FATAL: "f"\n", ##x); fflush(stdout); _abort(); } while(0)
 
 #define STRACE 0
 
@@ -43,7 +43,7 @@ static void _abort() {
 
 #define print(f, x...) do { fprintf(stdout, "%s:%s:%u - "f"\n", __FILE__, __FUNCTION__, __LINE__, ##x); fflush(stdout); } while(0)
 #define eprint(f, x...) do { fprintf(stderr, "%s:%s:%u - "f"\n", __FILE__, __FUNCTION__, __LINE__, ##x); fflush(stdout); } while(0)
-#define fatal(f, x...) do { fprintf(stderr, "%s:%s:%u - "f"\n", __FILE__, __FUNCTION__, __LINE__, ##x); _abort(); } while(0)
+#define fatal(f, x...) do { fprintf(stderr, "FATAL: %s:%s:%u - "f"\n", __FILE__, __FUNCTION__, __LINE__, ##x); _abort(); } while(0)
 
 //#ifndef HAVE_STRACE
 //#define HAVE_STRACE

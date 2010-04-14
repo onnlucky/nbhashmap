@@ -324,6 +324,8 @@ static int _copy_block(HashMap *map, header *okvs, header *nkvs) {
     return 1;                    // more work todo
 }
 
+void * _resize(HashMap *map, header *okvs);
+
 // when a resize is detected, try to help it along
 void _help_resize(HashMap *map, header *okvs) {
     if (map->_kvs != okvs) return;
@@ -332,6 +334,10 @@ void _help_resize(HashMap *map, header *okvs) {
     header *nkvs = (header *)map->_nkvs;
     while (nkvs == 0 || nkvs == kvs_promise) {
         if (map->_kvs != okvs) return;
+        if (nkvs == 0) { // try to start a resize ourselves; this compensates for late promises
+            _resize(map, okvs);
+            return;
+        }
         yield(); nkvs = (header *)map->_nkvs;
     }
 
@@ -346,9 +352,10 @@ void * _resize(HashMap *map, header *okvs) {
     assert(map);
     strace("maybe resize: %p, %p, %p", map->_kvs, okvs, map->_nkvs);
     if (map->_nkvs != null) return SIZED; // somebody else already produced a new map
+    if (map->_kvs != okvs) return SIZED;  // somebody else alreay promoted a new map
 
     if (cas(&map->_nkvs, kvs_promise, null)) {
-        if (okvs != map->_kvs) {
+        if (map->_kvs != okvs) {
             if (!cas(&map->_nkvs, null, kvs_promise)) fatal("unpublising late promise");
             return SIZED; // we are so late: we didn't actually win the race; the winner already moved on
         }
@@ -384,10 +391,10 @@ void * _resize(HashMap *map, header *okvs) {
         push_old_kvs(nkvs, okvs);
         free_old_kvs(nkvs);
 
-        // this is the required order: otherwise another thread might observe both kvs and nkvs to
-        // be the new map, but read it as must _help_resize
-        if (!cas(&map->_nkvs, null, nkvs)) fatal("unpublising resize in progress");
+        // this is the required order: otherwise another thread might attempt to resize (when compensating for late promise)
+        // notice we compensate that we can now observe nkvs == kvs (in _putif)
         if (!cas(&map->_kvs, nkvs, okvs))  fatal("publishing new map");
+        if (!cas(&map->_nkvs, null, nkvs)) fatal("unpublising resize in progress");
         map->changes = 0;
         strace("done resizing: %p[%lu].size: %ld", nkvs, nkvs->len, hashmap_size(map));
         return SIZED; // always indicate we need to retry after resize
@@ -481,7 +488,9 @@ static void * _putif(HashMap *map, int resizing, header *kvs, void *key, const u
     if (v == SIZED) return SIZED;
     if (!resizing && v != null) {
         // we quickly check if resize is in progress, to prevent wasting effort on old map
-        if (map->_nkvs || map->_kvs != kvs) return SIZED;
+        header *nkvs = (header *)map->_nkvs;
+        if (nkvs != 0 && nkvs != kvs) return SIZED;
+        if (map->_kvs != kvs) return SIZED;
     }
 
     while (1) {
