@@ -1,4 +1,4 @@
-// ** a non blocking hash map **
+// ** a lockless high throughput hash map **
 //
 // author: Onne Gorter <onne@onnlucky.com>
 // version: 2010-04-14
@@ -16,7 +16,7 @@
 // k, h, S = sized-value -> "restart"
 // k, 0, _ = partial     -> "wait hash": value
 //
-// Notice, though it is a _non blocking_ hash map, it does sometimes yield (sleep) the current thread. But only if
+// Notice, it is not truly a _non blocking_ hash map, since it does sometimes yield (sleep) the current thread. But only if
 // another thread promised to do something, but was unscheduled before (or is still busy) doing it. Since these
 // promises will happen in a near future without any blocking, this is ok. Unfortunately we cannot know the identity
 // of the promising thread, and we cannot yield only until the promise is fullfilled.
@@ -113,8 +113,8 @@ struct HashMap {
 #define BLOCK_SIZE (1024 * 8)
 
 #define null 0                        // indicates value is deleted
+       void *IGNORE  = "__IGNORE__";  // marker to indicate old map value is to be ignored
 static void *SIZED   = "__SIZED__";   // marker to indicate map is or has resized
-static void *IGNORE  = "__IGNORE__";  // marker to indicate old map value is to be ignored
 static void *DELETED = "__DELETED__"; // marker to indicate key is to be deleted (when resizing)
 
 
